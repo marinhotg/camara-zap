@@ -25,7 +25,9 @@ export class MCPClient {
 
   async start() {
     return new Promise<void>((resolve, reject) => {
-      this.process = spawn('node', ['/home/tiago/dev/mcp-camara/dist/index.js'], {
+      const mcpPath = '/home/tiago/dev/camara-zap/mcp-camara/dist/index.js';
+      logger.info({ mcpPath }, 'Starting MCP server');
+      this.process = spawn('node', [mcpPath], {
         stdio: ['pipe', 'pipe', 'pipe'],
       });
 
@@ -40,7 +42,9 @@ export class MCPClient {
               const response: JsonRpcResponse = JSON.parse(line);
               const pending = this.pendingRequests.get(response.id);
               if (pending) {
+                logger.debug({ id: response.id, hasError: !!response.error }, 'Received MCP response');
                 if (response.error) {
+                  logger.error({ error: response.error, id: response.id }, 'MCP error response');
                   pending.reject(new Error(response.error.message || 'MCP Error'));
                 } else {
                   pending.resolve(response.result);
@@ -87,14 +91,16 @@ export class MCPClient {
 
       this.pendingRequests.set(id, { resolve, reject });
 
+      logger.debug({ method, params, id }, 'Sending MCP request');
       this.process.stdin.write(JSON.stringify(request) + '\n');
 
       setTimeout(() => {
         if (this.pendingRequests.has(id)) {
           this.pendingRequests.delete(id);
+          logger.error({ method, params, id }, 'MCP request timeout');
           reject(new Error('Request timeout'));
         }
-      }, 30000);
+      }, 60000);
     });
   }
 
