@@ -2,7 +2,6 @@ import 'dotenv/config';
 import makeWASocket, {
     DisconnectReason,
     useMultiFileAuthState,
-    fetchLatestBaileysVersion,
     makeCacheableSignalKeyStore,
     WAMessage,
     MessageUpsertType
@@ -13,21 +12,16 @@ import qrcode from 'qrcode-terminal';
 import { MCPClient } from './mcp-client.js';
 import { GeminiService } from './gemini.js';
 
-const logger = pino({ level: 'silent' });
+const logger = pino({ level: 'error' });
 
 const mcpClient = new MCPClient();
 let geminiService: GeminiService;
 
 async function startBot() {
     const { state, saveCreds } = await useMultiFileAuthState('auth_info_baileys');
-    const { version } = await fetchLatestBaileysVersion();
 
     const sock = makeWASocket({
-        version,
-        auth: {
-            creds: state.creds,
-            keys: makeCacheableSignalKeyStore(state.keys, logger),
-        },
+        auth: state,
         browser: ['Bot Câmara', 'Desktop', '1.0.0'],
         logger,
     });
