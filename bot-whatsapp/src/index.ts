@@ -16,6 +16,7 @@ const logger = pino({ level: 'error' });
 
 const mcpClient = new MCPClient();
 let geminiService: GeminiService;
+const userContext = new Map<string, string>();
 
 async function startBot() {
     const { state, saveCreds } = await useMultiFileAuthState('auth_info_baileys');
@@ -69,13 +70,23 @@ async function startBot() {
                 const text = msg.message.conversation || msg.message.extendedTextMessage?.text;
 
                 if (text && sender) {
-                    console.log(`\n📨 Mensagem de ${sender}:`);
+                    console.log(`\n📨 Mensagem de ${sender}:
+`);
                     console.log(`   "${text}"`);
 
                     try {
                         await sock.sendPresenceUpdate('composing', sender);
 
-                        const response = await geminiService.chat(text);
+                        let messageToSend = text;
+                        const lastResponse = userContext.get(sender);
+
+                        if (lastResponse) {
+                             messageToSend = `Mensagem anterior do Bot: "${lastResponse}"\n\nMensagem atual do usuário: "${text}"`;
+                        }
+
+                        const response = await geminiService.chat(messageToSend);
+
+                        userContext.set(sender, response);
 
                         await sock.sendPresenceUpdate('paused', sender);
 
